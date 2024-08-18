@@ -1,0 +1,6 @@
+train: HardHatSample/train/
+val: HardHatSample/valid/
+test: HardHatSample/test/
+
+nc: 4  # Number of classes
+names: ['Workers', 'head', 'helmet', 'person']  # List of class names
