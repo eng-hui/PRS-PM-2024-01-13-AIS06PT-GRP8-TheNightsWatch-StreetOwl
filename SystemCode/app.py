@@ -19,7 +19,7 @@ def main():
     st.sidebar.header("Settings")
     model_choice = st.sidebar.selectbox(
         "Select YOLO model",
-        ("yolov8n.pt", "yolov8l.pt", "yolov8x.pt", "yolov8n-obb.pt", "yolov8n-seg.pt", "yolov8l-seg.pt","streetowlbest.pt","streetowl-segbest.pt")
+        ("custom_yolov8s.pt","yolov8n.pt", "yolov8l.pt", "yolov8x.pt", "yolov8n-obb.pt", "yolov8n-seg.pt", "yolov8l-seg.pt","streetowlbest.pt","streetowl-segbest.pt")
     )
     url = st.sidebar.text_input("YouTube URL", "https://www.youtube.com/watch?v=DjdUEyjx8GM")
     confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.1, 1.0, 0.1, 0.05)
