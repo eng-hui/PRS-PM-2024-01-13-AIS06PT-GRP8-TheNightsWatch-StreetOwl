@@ -6,6 +6,10 @@ import numpy as np
 import streamlink
 import torch 
 import pandas as pd
+import warnings
+
+# Suppress all RuntimeWarnings globally
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 def init_page_config():
     st.set_page_config(
@@ -79,8 +83,8 @@ def main():
         right_exits_placeholder = st.empty()
 
     with col2:
-        livechart_placeholder = st.empty()
         livechart_data = pd.DataFrame(columns=['Detected'])
+        livechart_placeholder = st.line_chart(livechart_data)
         
 
     # Function to check if a person has crossed a line
@@ -100,7 +104,8 @@ def main():
         if success:
             results = model.track(frame, persist=True, classes=0, conf=confidence_threshold, tracker="bytetrack.yaml",verbose=False)
 
-            annotated_frame = frame.copy()
+            annotated_frame = frame
+            # annotated_frame = frame.copy()
             #annotated_frame = results[0].plot() # info from yolo v8, optional, can comment off
             # Create a blank overlay for the semi-transparent masks
             overlay = np.zeros_like(frame, dtype=np.uint8)
@@ -164,12 +169,12 @@ def main():
             right_exits_placeholder.text(f"Right Exits: {right_exit_count}")
 
             # Update live chart
-            
-            livechart_data.loc[len(livechart_data)] = num_objects
-            if len(livechart_data) > 120:
-                livechart_data = livechart_data.tail(120).reset_index(drop=True)
-            # livechart_data.columns = ['Detected']
-            livechart_placeholder.line_chart(livechart_data, y_label='People Detected')
+            if livechart_placeholder is not None:
+                livechart_data.loc[len(livechart_data)] = num_objects
+                if len(livechart_data) > 120:
+                    livechart_data = livechart_data.tail(120).reset_index(drop=True)
+                # livechart_data.columns = ['Detected']
+                livechart_placeholder.line_chart(livechart_data, y_label='People Detected')
 
             # Display the annotated frame
             frame_placeholder.image(annotated_frame, channels="BGR", use_column_width=True)
