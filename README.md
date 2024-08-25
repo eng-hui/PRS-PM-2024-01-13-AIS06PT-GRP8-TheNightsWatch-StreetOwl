@@ -3,9 +3,9 @@
 ---
 
 ## SECTION 1 : PROJECT TITLE
-## Street Sense - Insightful analysis for targeted business optimisation
+## Street Owl - Insightful analysis for targeted business optimisation
 
-<img src="Images/streetsense.png" width="400" />  
+<img src="Images/streetowl.png" width="400" />  
 
 ---
 
