@@ -1,1 +1,9 @@
 *.pt
+*.csv
+*.db
+
+runs/
+datasets/
+wandb/
+
+.ipynb_checkpoints/

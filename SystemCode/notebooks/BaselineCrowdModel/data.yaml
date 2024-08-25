@@ -1,0 +1,13 @@
+train: ../streetowl/train/images
+val: ../streetowl/valid/images
+test: ../streetowl/test/images
+
+nc: 1
+names: ['Human']
+
+roboflow:
+  workspace: prspm
+  project: streetowl
+  version: 9
+  license: MIT
+  url: https://universe.roboflow.com/prspm/streetowl/dataset/9
