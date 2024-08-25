@@ -8,21 +8,27 @@ import torch
 import pandas as pd
 import warnings
 
-# Suppress all RuntimeWarnings globally
+# Suppress all RuntimeWarnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 def init_page_config():
     st.set_page_config(
         page_title="Street Owl",
         page_icon=":owl:",
-        layout="wide",
+        layout="centered",
         initial_sidebar_state="expanded",
     )
- 
+# Function to check if a person has crossed a line
+def has_crossed_line(prev_pos, curr_pos, line_pos):
+    return (prev_pos < line_pos and curr_pos >= line_pos) or (prev_pos > line_pos and curr_pos <= line_pos)
+
 
 def main():
     init_page_config()
-    st.title("Street Owl Monitoring")
+
+    logo_col, title_col = st.columns([1,6])
+    logo_col.image("Images/streetowl_logo.png")
+    title_col.title("Street Owl Monitoring")
     # Check for GPU availability
     device_name = "CPU"
     if (torch.cuda.is_available()):
@@ -34,7 +40,7 @@ def main():
     st.sidebar.header("Settings")
     model_choice = st.sidebar.selectbox(
         "Select YOLO model",
-        ("custom_yolov8s.pt","yolov8n.pt", "yolov8l.pt", "yolov8x.pt", "yolov8n-obb.pt", "yolov8n-seg.pt", "yolov8l-seg.pt","streetowlbest.pt","streetowl-segbest.pt")
+        ("streetowlbest.pt","streetowl-segbest.pt","yolov8n.pt", "yolov8l.pt", "yolov8x.pt", "yolov8n-obb.pt", "yolov8n-seg.pt", "yolov8l-seg.pt","custom_yolov8s.pt")
     )
     url = st.sidebar.text_input("YouTube URL", "https://www.youtube.com/watch?v=DjdUEyjx8GM")
     confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.1, 1.0, 0.1, 0.05)
@@ -75,21 +81,18 @@ def main():
         frame_placeholder = st.empty()
 
     # Create placeholders for metrics
-    col1, col2 = st.columns([1, 1])
-    with col1:
+    left_col, right_col = st.columns([1, 1])
+    with left_col:
         fps_placeholder = st.empty()
         detected_placeholder = st.empty()
         left_exits_placeholder = st.empty()
         right_exits_placeholder = st.empty()
 
-    with col2:
+    with right_col:
         livechart_data = pd.DataFrame(columns=['Detected'])
         livechart_placeholder = st.line_chart(livechart_data)
         
 
-    # Function to check if a person has crossed a line
-    def has_crossed_line(prev_pos, curr_pos, line_pos):
-        return (prev_pos < line_pos and curr_pos >= line_pos) or (prev_pos > line_pos and curr_pos <= line_pos)
 
     frame_counter = 0
     prev_frame_time = time.time()
