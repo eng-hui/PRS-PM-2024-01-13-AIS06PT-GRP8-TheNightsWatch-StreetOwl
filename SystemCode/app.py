@@ -8,7 +8,7 @@ import torch
 import pandas as pd
 import warnings
 from get_cap import get_cap
-from frame_process import draw_counting_lines,exit_count
+from frame_process import draw_counting_lines, exit_count
 
 # Suppress all RuntimeWarnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -43,6 +43,49 @@ def get_options():
     frame_skip = st.sidebar.number_input("Frame Skip", 0, 10, 2)
     return model_choice, url, confidence_threshold, frame_skip
 
+
+
+def update_placeholders(placeholders, data):
+    fps_placeholder = placeholder["fps_placeholder"]
+    detected_placeholder = placeholder["fps_placeholder"]
+    left_exits_placeholder = placeholder["left_exits_placeholder"]
+    right_exits_placeholder = placeholder["right_exits_placeholder"]
+    livechart_placeholder = placeholder["livechart_placeholder"]
+    livechart_data = placeholder["livechart_data"]
+    frame_placeholder = placeholder["frame_placeholder"]
+
+    fps_placeholder.text(f"FPS: {int(fps)}")
+    detected_placeholder.text(f"Detected Objects: {data["num_objects"]}")
+    left_exits_placeholder.text(f"Left Exits: {data["left_exit_count"]}")
+    right_exits_placeholder.text(f"Right Exits: {data["right_exit_count"]}")
+
+    # Update live chart
+    if livechart_placeholder is not None:
+        livechart_data.loc[len(livechart_data)] = num_objects
+        if len(livechart_data) > 120:
+            livechart_data = livechart_data.tail(120).reset_index(drop=True)
+        # livechart_data.columns = ['Detected']
+        livechart_placeholder.line_chart(livechart_data, y_label='People Detected')
+
+    # Display the annotated frame
+    frame_placeholder.image(annotated_frame, channels="BGR", use_column_width=True)   
+
+
+def add_overlay(annotated_frame):
+    overlay = np.zeros_like(frame, dtype=np.uint8)
+    if track_results[0].masks is not None:
+        for mask in track_results[0].masks.xy:
+            # Convert the polygon to a format suitable for cv2.fillPoly
+            polygon = np.array(mask, dtype=np.int32)
+            
+            # Fill the polygon on the overlay
+            cv2.fillPoly(overlay, [polygon], color=(255, 0, 255))  # Mask color
+    
+    # Blend the overlay with the original frame
+    alpha = 0.3  # Adjust this value to change the transparency (0.0 - 1.0)
+    annotated_frame = cv2.addWeighted(frame, 1, overlay, alpha, 0)
+    return annotated_frame
+
 def main():
     init_page_config()
     model_choice, url, confidence_threshold, frame_skip = get_options()
@@ -57,6 +100,8 @@ def main():
         "Select Video Quality",
         ("360p", "480p", "720p", "1080p", "best")
     )
+
+
     # Initialize video capture
     cap = get_cap(url, vid_quality)
 
@@ -71,7 +116,7 @@ def main():
 
 
 
-    # Initialize counters and tracking variables
+    # Register data
     data = {}
     data["left_exit_count"] = 0
     data["right_exit_count"] = 0
@@ -87,17 +132,17 @@ def main():
 
 
     # Create placeholders for metrics
-    metrics = {}
+    placeholders = {}
     left_col, right_col = st.columns([1, 1])
     with left_col:
-        fps_placeholder = st.empty()
-        detected_placeholder = st.empty()
-        left_exits_placeholder = st.empty()
-        right_exits_placeholder = st.empty()
+        placeholders["fps_placeholder"] = st.empty()
+        placeholders["detected_placeholder"] = st.empty()
+        placeholders["left_exits_placeholder"] = st.empty()
+        placeholders["right_exits_placeholder"] = st.empty()
 
     with right_col:
-        livechart_data = pd.DataFrame(columns=['Detected'])
-        livechart_placeholder = st.line_chart(livechart_data)
+        placeholders["livechart_data"] = pd.DataFrame(columns=['Detected'])
+        placeholders["livechart_placeholder"] = st.line_chart(livechart_data)
         
 
 
@@ -118,22 +163,8 @@ def main():
             # annotated_frame = frame.copy()
             #annotated_frame = track_results[0].plot() # info from yolo v8, optional, can comment off
             # Create a blank overlay for the semi-transparent masks
-            overlay = np.zeros_like(frame, dtype=np.uint8)
-            if track_results[0].masks is not None:
-                for mask in track_results[0].masks.xy:
-                    # Convert the polygon to a format suitable for cv2.fillPoly
-                    polygon = np.array(mask, dtype=np.int32)
-                    
-                    # Fill the polygon on the overlay
-                    cv2.fillPoly(overlay, [polygon], color=(255, 0, 255))  # Mask color
-            
-            # Blend the overlay with the original frame
-            alpha = 0.3  # Adjust this value to change the transparency (0.0 - 1.0)
-            annotated_frame = cv2.addWeighted(frame, 1, overlay, alpha, 0)
-            
-            
+            annotated_frame = add_overlay(annotated_frame)
             annotated_frame, data = exit_count(annotated_frame, track_results, data)
-      
             # Draw counting lines
             draw_counting_lines(annotated_frame, track_results, data)
 
@@ -141,26 +172,12 @@ def main():
             new_frame_time = time.time()
             fps = 1.0 / ((new_frame_time - prev_frame_time)+0.01)
             prev_frame_time = new_frame_time
+            data["fps"] = fps
 
             # Count detected objects
-            num_objects = len(track_results[0].boxes) if track_results[0].boxes is not None else 0
-
-            # Update metrics
-            fps_placeholder.text(f"FPS: {int(fps)}")
-            detected_placeholder.text(f"Detected Objects: {num_objects}")
-            left_exits_placeholder.text(f"Left Exits: {data["left_exit_count"]}")
-            right_exits_placeholder.text(f"Right Exits: {data["right_exit_count"]}")
-
-            # Update live chart
-            if livechart_placeholder is not None:
-                livechart_data.loc[len(livechart_data)] = num_objects
-                if len(livechart_data) > 120:
-                    livechart_data = livechart_data.tail(120).reset_index(drop=True)
-                # livechart_data.columns = ['Detected']
-                livechart_placeholder.line_chart(livechart_data, y_label='People Detected')
-
-            # Display the annotated frame
-            frame_placeholder.image(annotated_frame, channels="BGR", use_column_width=True)
+            data["num_objects"] = len(track_results[0].boxes) if track_results[0].boxes is not None else 0
+            
+            update_placeholders(placeholders, data)
 
         if not success:
             st.write("End of video stream.")
