@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import streamlit as st
 
 def draw_counting_lines(annotated_frame, track_results, data):
     left_line = data.get("left_line")
@@ -14,6 +15,28 @@ def draw_counting_lines(annotated_frame, track_results, data):
 # Function to check if a person has crossed a line
 def has_crossed_line(prev_pos, curr_pos, line_pos):
     return (prev_pos < line_pos and curr_pos >= line_pos) or (prev_pos > line_pos and curr_pos <= line_pos)
+
+
+def get_one_target():
+    frame = st.session_state.current_frame
+    track_results = st.session_state.track_results
+    if track_results[0].boxes is not None and track_results[0].boxes.id is not None:
+        box = track_results[0].boxes.xywh[0]
+        x_center, y_center, w, h  = box
+        # Calculate the top-left corner from the center (ensure the values are integers)
+        x = int(x_center - w // 2)
+        y = int(y_center - h // 2)
+
+        # Ensure that the calculated coordinates are within the image bounds
+        x = max(0, x)  # Make sure x is not less than 0
+        y = max(0, y)  # Make sure y is not less than 0
+        x_end = min(x + w, frame.shape[1])  # Ensure the width doesn't exceed image width
+        y_end = min(y + h, frame.shape[0])  # Ensure the height doesn't exceed image height
+
+        # Crop the target image from the frame using NumPy slicing
+        target_image = frame[int(y):int(y_end), int(x):int(x_end)]
+        st.image(target_image)
+
 
 
 def exit_count(annotated_frame, track_results, data):
