@@ -1,11 +1,24 @@
 import cv2
 import numpy as np
 import streamlit as st
+from utils import call_gpt
 
-def draw_counting_lines(annotated_frame, track_results, data):
-    left_line = data.get("left_line")
-    right_line = data.get("right_line")
-    frame_height = data.get("frame_height")
+import numpy as np
+import base64
+from io import BytesIO
+from PIL import Image
+
+def numpy_to_base64(image_np: np.ndarray) -> str:
+    image_pil = Image.fromarray(image_np)
+    buffered = BytesIO()
+    image_pil.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode('utf-8')
+    return img_str
+
+def draw_counting_lines(annotated_frame, track_results):
+    left_line = st.session_state.left_line
+    right_line = st.session_state.right_line
+    frame_height = st.session_state.frame_height
 
     cv2.line(annotated_frame, (left_line, 0), (left_line, frame_height), (255, 255, 0), 2)
     cv2.line(annotated_frame, (right_line, 0), (right_line, frame_height), (255, 255, 0), 2)    
@@ -36,37 +49,65 @@ def get_one_target():
         # Crop the target image from the frame using NumPy slicing
         target_image = frame[int(y):int(y_end), int(x):int(x_end)]
         st.image(target_image)
+        img_str = numpy_to_base64(target_image)
+        prompt = """Analyse the above image like you are a super detective, return infomation from the person in the center of the image
+return in standard json format like:
+{
+    "gender": str,
+    "clothing": Dict,
+    "age": str,
+    "note": text
+}
+"""
+        messages = [
+                {"role": "system", "content": "You are here to help analyse image from monitor."},
+                {
+                    "role": "user",
+                    "content":[{
+                        "type": "image_url",
+                        "image_url": {
+                        "url": f"data:image/jpeg;base64,{img_str}"
+                        }}]
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+        ]
+        d = call_gpt(messages)
+        st.write(d)
 
 
 
-def exit_count(annotated_frame, track_results, data):
-    left_line = data.get("left_line")
-    right_line = data.get("right_line")
+def exit_count(annotated_frame):
+    track_results = st.session_state.track_results
+    left_line = st.session_state.left_line
+    right_line = st.session_state.right_line
     if track_results[0].boxes is not None and track_results[0].boxes.id is not None:
         for box, track_id in zip(track_results[0].boxes.xywh, track_results[0].boxes.id):
             x, y, w, h = box
             track_id = int(track_id)
             center_x, center_y = int(x), int(y)
 
-            if track_id not in data["track_history"]:
-                data["track_history"][track_id] = []
-            data["track_history"][track_id].append((center_x, center_y))
-            data["track_history"][track_id] = data["track_history"][track_id][-30:]
+            if track_id not in st.session_state.track_history:
+                st.session_state.track_history[track_id] = []
+            st.session_state.track_history[track_id].append((center_x, center_y))
+            st.session_state.track_history[track_id] = st.session_state.track_history[track_id][-30:]
 
-            if len(data["track_history"][track_id]) > 1:
-                prev_x = np.mean([pos[0] for pos in data["track_history"][track_id][:-10]])
-                curr_x = np.mean([pos[0] for pos in data["track_history"][track_id][-10:]])
+            if len(st.session_state.track_history[track_id]) > 1:
+                prev_x = np.mean([pos[0] for pos in st.session_state.track_history[track_id][:-10]])
+                curr_x = np.mean([pos[0] for pos in st.session_state.track_history[track_id][-10:]])
 
-                if has_crossed_line(prev_x, curr_x, left_line) and track_id not in data["left_exited_ids"]:
-                    data["left_exit_count"] += 1
-                    data["left_exited_ids"].add(track_id)
-                elif has_crossed_line(prev_x, curr_x, right_line) and track_id not in data["right_exited_ids"]:
-                    data["right_exit_count"] += 1
-                    data["right_exited_ids"].add(track_id)
+                if has_crossed_line(prev_x, curr_x, left_line) and track_id not in st.session_state.left_exited_ids:
+                    st.session_state.left_exit_count += 1
+                    st.session_state.left_exited_ids.add(track_id)
+                elif has_crossed_line(prev_x, curr_x, right_line) and track_id not in st.session_state.right_exited_ids:
+                    st.session_state.right_exit_count += 1
+                    st.session_state.right_exited_ids.add(track_id)
 
-            if len(data["track_history"][track_id]) > 1:
-                cv2.polylines(annotated_frame, [np.array(data["track_history"][track_id], dtype=np.int32)], False, (0, 255, 0), 2)
+            if len(st.session_state.track_history[track_id]) > 1:
+                cv2.polylines(annotated_frame, [np.array(st.session_state.track_history[track_id], dtype=np.int32)], False, (0, 255, 0), 2)
 
             cv2.putText(annotated_frame, f"ID: {track_id}", (int(x), int(y) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-    return annotated_frame, data
+    return annotated_frame
             

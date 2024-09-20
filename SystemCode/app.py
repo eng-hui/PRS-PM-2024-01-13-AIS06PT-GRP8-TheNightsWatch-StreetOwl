@@ -9,6 +9,8 @@ import pandas as pd
 import warnings
 from get_cap import get_cap
 from frame_process import draw_counting_lines, exit_count, get_one_target
+from dotenv import load_dotenv
+
 
 # Suppress all RuntimeWarnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -32,6 +34,7 @@ def init_page_config():
     st.sidebar.text(f"Using device:\n{device_name}")
     # Sidebar for user input
     st.sidebar.header("Settings")
+    load_dotenv()
 
 def analyse():
     st.write(st.session_state.data)
@@ -48,33 +51,34 @@ def get_options():
     return model_choice, url, confidence_threshold, frame_skip
 
 
-def update_placeholders(placeholders, data, annotated_frame):
-    fps_placeholder = placeholders["fps_placeholder"]
-    detected_placeholder = placeholders["fps_placeholder"]
-    left_exits_placeholder = placeholders["left_exits_placeholder"]
-    right_exits_placeholder = placeholders["right_exits_placeholder"]
-    livechart_placeholder = placeholders["livechart_placeholder"]
-    livechart_data = placeholders["livechart_data"]
-    frame_placeholder = placeholders["frame_placeholder"]
+def update_placeholders(annotated_frame):
+    fps_placeholder = st.session_state.fps_placeholder
+    detected_placeholder = st.session_state.detected_placeholder
+    left_exits_placeholder = st.session_state.left_exits_placeholder
+    right_exits_placeholder = st.session_state.right_exits_placeholder
+    livechart_placeholder = st.session_state.livechart_placeholder
+    livechart_data = st.session_state.livechart_data
+    frame_placeholder = st.session_state.frame_placeholder
 
-    fps_placeholder.text(f"FPS: {int(data["fps"])}")
-    detected_placeholder.text(f"Detected Objects: {data["num_objects"]}")
-    left_exits_placeholder.text(f"Left Exits: {data["left_exit_count"]}")
-    right_exits_placeholder.text(f"Right Exits: {data["right_exit_count"]}")
+    fps_placeholder.text(f"FPS: {int(st.session_state.fps)}")
+    detected_placeholder.text(f"Detected Objects: {st.session_state.num_objects}")
+    left_exits_placeholder.text(f"Left Exits: {st.session_state.left_exit_count}")
+    right_exits_placeholder.text(f"Right Exits: {st.session_state.right_exit_count}")
 
     # Update live chart
     if livechart_placeholder is not None:
-        livechart_data.loc[len(livechart_data)] = data["num_objects"]
+        livechart_data.loc[len(livechart_data)] = st.session_state.num_objects
         if len(livechart_data) > 120:
             livechart_data = livechart_data.tail(120).reset_index(drop=True)
         # livechart_data.columns = ['Detected']
         livechart_placeholder.line_chart(livechart_data, y_label='People Detected')
 
     # Display the annotated frame
-    frame_placeholder.image(annotated_frame, channels="BGR", use_column_width=True)   
+    frame_placeholder.image(annotated_frame, channels="BGR", use_column_width=True)
 
 
-def add_overlay(frame, track_results):
+def add_overlay(frame):
+    track_results = st.session_state.track_results
     overlay = np.zeros_like(frame, dtype=np.uint8)
     if track_results[0].masks is not None:
         for mask in track_results[0].masks.xy:
@@ -117,37 +121,32 @@ def main():
     with st.expander("Show/Hide Video Frame", expanded=True):
         frame_placeholder = st.empty()
 
-
-
-    # Register data
-    data = {}
-    data["left_exit_count"] = 0
-    data["right_exit_count"] = 0
-    data["track_history"] = {}
-    data["left_exited_ids"] = set()
-    data["right_exited_ids"] = set()
+    st.session_state.left_exit_count = 0
+    st.session_state.right_exit_count = 0
+    st.session_state.track_history = {}
+    st.session_state.left_exited_ids = set()
+    st.session_state.right_exited_ids = set()
 
     # Define counting lines
-    data["frame_width"] = frame_width 
-    data["frame_height"] = frame_height
-    data["left_line"] = int(frame_width * 0.2)
-    data["right_line"] = int(frame_width * 0.8)
-    st.session_state.data = data
+    st.session_state.frame_width = frame_width 
+    st.session_state.frame_height = frame_height
+    st.session_state.left_line = int(frame_width * 0.2)
+    st.session_state.right_line = int(frame_width * 0.8)
 
 
     # Create placeholders for metrics
-    placeholders = {}
     left_col, right_col = st.columns([1, 1])
     with left_col:
-        placeholders["fps_placeholder"] = st.empty()
-        placeholders["detected_placeholder"] = st.empty()
-        placeholders["left_exits_placeholder"] = st.empty()
-        placeholders["right_exits_placeholder"] = st.empty()
+        st.session_state.fps_placeholder = st.empty()
+        st.session_state.detected_placeholder = st.empty()
+        st.session_state.left_exits_placeholder = st.empty()
+        st.session_state.right_exits_placeholder = st.empty()
 
     with right_col:
-        placeholders["livechart_data"] = pd.DataFrame(columns=['Detected'])
-        placeholders["livechart_placeholder"] = st.line_chart(placeholders["livechart_data"])
-    placeholders["frame_placeholder"] = frame_placeholder
+        st.session_state.livechart_data = pd.DataFrame(columns=['Detected'])
+        st.session_state.livechart_placeholder = st.line_chart(st.session_state.livechart_data)
+
+    st.session_state.frame_placeholder = frame_placeholder
         
 
 
@@ -170,21 +169,21 @@ def main():
             # annotated_frame = frame.copy()
             #annotated_frame = track_results[0].plot() # info from yolo v8, optional, can comment off
             # Create a blank overlay for the semi-transparent masks
-            annotated_frame = add_overlay(annotated_frame, track_results=track_results)
-            annotated_frame, data = exit_count(annotated_frame, track_results, data)
+            annotated_frame = add_overlay(annotated_frame)
+            annotated_frame = exit_count(annotated_frame)
             # Draw counting lines
-            draw_counting_lines(annotated_frame, track_results, data)
+            draw_counting_lines(annotated_frame, track_results)
 
             # Calculate FPS
             new_frame_time = time.time()
             fps = 1.0 / ((new_frame_time - prev_frame_time)+0.01)
             prev_frame_time = new_frame_time
-            data["fps"] = fps
+            st.session_state.fps = fps
 
             # Count detected objects
-            data["num_objects"] = len(track_results[0].boxes) if track_results[0].boxes is not None else 0
+            st.session_state.num_objects = len(track_results[0].boxes) if track_results[0].boxes is not None else 0
             
-            update_placeholders(placeholders, data, annotated_frame)
+            update_placeholders(annotated_frame)
 
         if not success:
             st.write("End of video stream.")
