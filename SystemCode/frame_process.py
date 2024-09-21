@@ -7,6 +7,7 @@ import numpy as np
 import base64
 from io import BytesIO
 from PIL import Image
+from utils import logger
 
 def numpy_to_base64(image_np: np.ndarray) -> str:
     image_pil = Image.fromarray(image_np)
@@ -48,14 +49,15 @@ def get_one_target():
 
         # Crop the target image from the frame using NumPy slicing
         target_image = frame[int(y):int(y_end), int(x):int(x_end)]
-        st.image(target_image)
+        #st.image(target_image)
+        st.session_state.target_image_placeholder.image(target_image)
         img_str = numpy_to_base64(target_image)
         prompt = """Analyse the above image like you are a super detective, return infomation from the person in the center of the image
 return in standard json format like:
 {
-    "gender": str,
+    "gender": {"value":str(MALE or FEMALE), "confidence":float}
     "clothing": Dict,
-    "age": str,
+    "age": {"value":str(KID or YOUNG OR MID-AGE or OLD), "confidence":float},
     "note": text
 }
 """
@@ -75,7 +77,8 @@ return in standard json format like:
                 }
         ]
         d = call_gpt(messages)
-        st.write(d)
+        st.session_state.analyse_result_placeholder.text(d)
+        #st.write(d)
 
 
 

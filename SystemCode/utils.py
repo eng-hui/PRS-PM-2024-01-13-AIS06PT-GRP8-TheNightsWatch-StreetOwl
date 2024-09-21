@@ -2,6 +2,7 @@ import requests
 from dotenv import load_dotenv
 import os
 from openai import OpenAI
+from loguru import logger
 load_dotenv()
 
 

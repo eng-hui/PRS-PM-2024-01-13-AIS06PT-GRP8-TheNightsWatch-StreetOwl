@@ -10,31 +10,55 @@ import warnings
 from get_cap import get_cap
 from frame_process import draw_counting_lines, exit_count, get_one_target
 from dotenv import load_dotenv
+from utils import logger
 
 
 # Suppress all RuntimeWarnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 def init_page_config():
-    st.set_page_config(
-        page_title="Street Owl",
-        page_icon=":owl:",
-        layout="centered",
-        initial_sidebar_state="expanded",
-    )
-    logo_col, title_col = st.columns([1,6])
-    #logo_col.image("Images/streetowl_logo.png")
-    title_col.title("Street Owl Monitoring")
+    if "init_flag" not in st.session_state:
+        st.set_page_config(
+            page_title="Street Owl",
+            page_icon=":owl:",
+            layout="centered",
+            initial_sidebar_state="expanded",
+        )
+        logo_col, title_col = st.columns([1,6])
+        #logo_col.image("Images/streetowl_logo.png")
+        title_col.title("Street Owl Monitoring")
 
-    # Check for GPU availability
-    device_name = "CPU"
-    if (torch.cuda.is_available()):
-        device = torch.device("cuda")
-        device_name = torch.cuda.get_device_name(device)
-    st.sidebar.text(f"Using device:\n{device_name}")
-    # Sidebar for user input
-    st.sidebar.header("Settings")
-    load_dotenv()
+        # Check for GPU availability
+        device_name = "CPU"
+        if (torch.cuda.is_available()):
+            device = torch.device("cuda")
+            device_name = torch.cuda.get_device_name(device)
+        st.sidebar.text(f"Using device:\n{device_name}")
+        # Sidebar for user input
+        st.sidebar.header("Settings")
+        logger.info("=========debug init===========")
+        load_dotenv()
+
+        with st.expander("Show/Hide Video Frame", expanded=True):
+            frame_placeholder = st.empty()
+        st.session_state.frame_placeholder = frame_placeholder
+
+        # Create placeholders for metrics
+        left_col, right_col = st.columns([1, 1])
+        with left_col:
+            st.session_state.fps_placeholder = st.empty()
+            st.session_state.detected_placeholder = st.empty()
+            st.session_state.left_exits_placeholder = st.empty()
+            st.session_state.right_exits_placeholder = st.empty()
+            
+        with right_col:
+            st.session_state.livechart_data = pd.DataFrame(columns=['Detected'])
+            st.session_state.livechart_placeholder = st.line_chart(st.session_state.livechart_data)
+
+        st.session_state.target_image_placeholder = st.empty()
+        st.session_state.analyse_result_placeholder = st.empty()
+        # Create a placeholder for the video frame
+        st.session_state.init_flag = True
 
 def analyse():
     st.write(st.session_state.data)
@@ -47,7 +71,8 @@ def get_options():
     url = st.sidebar.text_input("YouTube URL", "https://www.youtube.com/watch?v=DjdUEyjx8GM")
     confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.1, 1.0, 0.1, 0.05)
     frame_skip = st.sidebar.number_input("Frame Skip", 0, 10, 2)
-    st.button("Test", type="primary", on_click=get_one_target)
+    st.sidebar.button("Test", on_click=get_one_target)
+    logger.info("=========option========")
     return model_choice, url, confidence_threshold, frame_skip
 
 
@@ -93,6 +118,7 @@ def add_overlay(frame):
     annotated_frame = cv2.addWeighted(frame, 1, overlay, alpha, 0)
     return annotated_frame
 
+
 def main():
     init_page_config()
     model_choice, url, confidence_threshold, frame_skip = get_options()
@@ -116,11 +142,6 @@ def main():
     frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-
-    # Create a placeholder for the video frame
-    with st.expander("Show/Hide Video Frame", expanded=True):
-        frame_placeholder = st.empty()
-
     st.session_state.left_exit_count = 0
     st.session_state.right_exit_count = 0
     st.session_state.track_history = {}
@@ -132,28 +153,15 @@ def main():
     st.session_state.frame_height = frame_height
     st.session_state.left_line = int(frame_width * 0.2)
     st.session_state.right_line = int(frame_width * 0.8)
-
-
-    # Create placeholders for metrics
-    left_col, right_col = st.columns([1, 1])
-    with left_col:
-        st.session_state.fps_placeholder = st.empty()
-        st.session_state.detected_placeholder = st.empty()
-        st.session_state.left_exits_placeholder = st.empty()
-        st.session_state.right_exits_placeholder = st.empty()
-
-    with right_col:
-        st.session_state.livechart_data = pd.DataFrame(columns=['Detected'])
-        st.session_state.livechart_placeholder = st.line_chart(st.session_state.livechart_data)
-
-    st.session_state.frame_placeholder = frame_placeholder
+    st.session_state.process_flag = True
+    
         
 
 
     frame_counter = 0
     prev_frame_time = time.time()
 
-    while cap.isOpened():
+    while (cap.isOpened()) and st.session_state.process_flag:
         success, frame = cap.read()
         frame_counter += 1
         
