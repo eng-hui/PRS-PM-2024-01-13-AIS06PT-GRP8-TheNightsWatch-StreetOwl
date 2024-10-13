@@ -11,7 +11,12 @@ from get_cap import get_cap
 from frame_process import draw_counting_lines, exit_count, get_one_target
 from dotenv import load_dotenv
 from utils import logger
-
+import requests
+from PIL import Image
+import torch
+import supervision as sv
+from transformers import Owlv2Processor, Owlv2ForObjectDetection
+import scipy
 
 # Suppress all RuntimeWarnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -39,9 +44,19 @@ def init_page_config():
         logger.info("=========debug init===========")
         load_dotenv()
 
-        with st.expander("Show/Hide Video Frame", expanded=True):
-            frame_placeholder = st.empty()
-        st.session_state.frame_placeholder = frame_placeholder
+        main_left, main_right = st.columns([2,1])
+        with main_left:
+            with st.expander("Show/Hide Video Frame", expanded=True):
+                frame_placeholder = st.empty()
+            st.session_state.frame_placeholder = frame_placeholder
+        
+        with main_right:
+            with st.expander("Track", expanded=True):
+                st.text_input("Target Desc Text", key="target_desc_text")
+                st.number_input("target_id", 0, key="target_id")
+                st.button("Track", on_click=get_one_target)
+                st.session_state.target_image_placeholder = st.empty()
+                st.session_state.analyse_result_placeholder = st.empty()
 
         # Create placeholders for metrics
         left_col, right_col = st.columns([1, 1])
@@ -54,9 +69,7 @@ def init_page_config():
         with right_col:
             st.session_state.livechart_data = pd.DataFrame(columns=['Detected'])
             st.session_state.livechart_placeholder = st.line_chart(st.session_state.livechart_data)
-
-        st.session_state.target_image_placeholder = st.empty()
-        st.session_state.analyse_result_placeholder = st.empty()
+            
         # Create a placeholder for the video frame
         st.session_state.init_flag = True
 
@@ -71,7 +84,8 @@ def get_options():
     url = st.sidebar.text_input("YouTube URL", "https://www.youtube.com/watch?v=DjdUEyjx8GM")
     confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.1, 1.0, 0.1, 0.05)
     frame_skip = st.sidebar.number_input("Frame Skip", 0, 10, 2)
-    st.sidebar.button("Test", on_click=get_one_target)
+
+    
     logger.info("=========option========")
     return model_choice, url, confidence_threshold, frame_skip
 
@@ -127,6 +141,7 @@ def main():
     @st.cache_resource
     def load_model(model_path):
         return YOLO(model_path)
+    
 
     model = load_model(model_choice)
     vid_quality = st.sidebar.selectbox(
@@ -192,6 +207,7 @@ def main():
             st.session_state.num_objects = len(track_results[0].boxes) if track_results[0].boxes is not None else 0
             
             update_placeholders(annotated_frame)
+            st.session_state.annotated_frame = annotated_frame
 
         if not success:
             st.write("End of video stream.")
