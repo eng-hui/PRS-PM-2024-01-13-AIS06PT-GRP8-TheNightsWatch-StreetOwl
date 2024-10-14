@@ -26,7 +26,7 @@ def init_page_config():
         st.set_page_config(
             page_title="Street Owl",
             page_icon=":owl:",
-            layout="centered",
+            layout="wide",
             initial_sidebar_state="expanded",
         )
         logo_col, title_col = st.columns([1,6])
@@ -38,9 +38,8 @@ def init_page_config():
         if (torch.cuda.is_available()):
             device = torch.device("cuda")
             device_name = torch.cuda.get_device_name(device)
-        st.sidebar.text(f"Using device:\n{device_name}")
-        # Sidebar for user input
-        st.sidebar.header("Settings")
+        st.session_state.device_name = device_name
+
         logger.info("=========debug init===========")
         load_dotenv()
 
@@ -51,10 +50,7 @@ def init_page_config():
             st.session_state.frame_placeholder = frame_placeholder
         
         with main_right:
-            with st.expander("Track", expanded=True):
-                st.text_input("Target Desc Text", key="target_desc_text")
-                st.number_input("target_id", 0, key="target_id")
-                st.button("Track", on_click=get_one_target)
+            with st.expander("Result", expanded=True):
                 st.session_state.target_image_placeholder = st.empty()
                 st.session_state.analyse_result_placeholder = st.empty()
 
@@ -77,17 +73,29 @@ def analyse():
     st.write(st.session_state.data)
 
 def get_options():
-    model_choice = st.sidebar.selectbox(
-        "Select YOLO model",
-        ("streetowlbest.pt","streetowl-segbest.pt","yolov8n.pt", "yolov8l.pt", "yolov8x.pt", "yolov8n-obb.pt", "yolov8n-seg.pt", "yolov8l-seg.pt","custom_yolov8s.pt")
-    )
-    url = st.sidebar.text_input("YouTube URL", "https://www.youtube.com/watch?v=DjdUEyjx8GM")
-    confidence_threshold = st.sidebar.slider("Confidence Threshold", 0.1, 1.0, 0.1, 0.05)
-    frame_skip = st.sidebar.number_input("Frame Skip", 0, 10, 2)
-
+    sidebar, tracking, scan = st.sidebar.tabs(["Sidebar", "Track", "Scan"])
+    with sidebar:
+        sidebar.text(f"Using device:\n{st.session_state.device_name}")
+        # Sidebar for user input
+        sidebar.header("Settings")
+        model_choice = sidebar.selectbox(
+            "Select YOLO model",
+            ("streetowlbest.pt","streetowl-segbest.pt","yolov8n.pt", "yolov8l.pt", "yolov8x.pt", "yolov8n-obb.pt", "yolov8n-seg.pt", "yolov8l-seg.pt","custom_yolov8s.pt")
+        )
+        url = sidebar.text_input("YouTube URL", "https://www.youtube.com/watch?v=DjdUEyjx8GM")
+        confidence_threshold = sidebar.slider("Confidence Threshold", 0.1, 1.0, 0.1, 0.05)
+        frame_skip = sidebar.number_input("Frame Skip", 0, 10, 2)
+        vid_quality = sidebar.selectbox(
+            "Select Video Quality",
+            ("360p", "480p", "720p", "1080p", "best")
+        )
+    with tracking:
+        st.text_input("Target Desc Text", key="target_desc_text")
+        st.number_input("target_id", 0, key="target_id")
+        st.button("Track", on_click=get_one_target)
     
     logger.info("=========option========")
-    return model_choice, url, confidence_threshold, frame_skip
+    return model_choice, url, confidence_threshold, frame_skip, vid_quality
 
 
 def update_placeholders(annotated_frame):
@@ -135,7 +143,7 @@ def add_overlay(frame):
 
 def main():
     init_page_config()
-    model_choice, url, confidence_threshold, frame_skip = get_options()
+    model_choice, url, confidence_threshold, frame_skip, vid_quality = get_options()
 
     # Load the YOLOv8 model
     @st.cache_resource
@@ -144,10 +152,10 @@ def main():
     
 
     model = load_model(model_choice)
-    vid_quality = st.sidebar.selectbox(
-        "Select Video Quality",
-        ("360p", "480p", "720p", "1080p", "best")
-    )
+    # vid_quality = st.sidebar.selectbox(
+    #     "Select Video Quality",
+    #     ("360p", "480p", "720p", "1080p", "best")
+    # )
 
 
     # Initialize video capture

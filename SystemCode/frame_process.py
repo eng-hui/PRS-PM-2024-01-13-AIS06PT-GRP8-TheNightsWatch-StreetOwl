@@ -77,7 +77,7 @@ return in standard json format like:"""+\
             }
     ]
     d = call_gpt(messages)
-    logger.info(f"get target_id: {d.get("target_id")}")
+    logger.info(f"get target_id: {d.get('target_id')}")
     return d.get("target_id")
 
 
