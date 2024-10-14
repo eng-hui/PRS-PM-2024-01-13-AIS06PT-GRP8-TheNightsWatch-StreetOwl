@@ -12,7 +12,7 @@ import scipy
 processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-finetuned")
 model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-finetuned")
 
-file = "./SystemCode/notebooks/test.jpg"
+file = "./notebooks/test.jpg"
 image = Image.open(file)
 texts = [["an old lady"]]
 inputs = processor(text=texts, images=image, return_tensors="pt")

@@ -19,9 +19,10 @@ import asyncio
 # Load the Owlv2 model
 @st.cache_resource
 def load_owl_model():
-    processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-ensemble")
-    model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
-    return processor, model
+    processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-finetuned")
+    model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-finetuned")
+    logger.info(model.device)
+    return  model, processor
 
 def numpy_to_base64(image_np: np.ndarray) -> str:
     image_pil = Image.fromarray(image_np)
@@ -81,15 +82,27 @@ return in standard json format like:"""+\
     return d.get("target_id")
 
 
-def owl_text_detection(text, frame):
-    texts = [[text]]
-    target_sizes = torch.Tensor([frame.shape[:2]])
-    model, processor = load_owl_model()
-    inputs = processor(text=texts, images=frame, return_tensors="pt")
-    outputs = model(**inputs)
-    results = processor.post_process_object_detection(outputs=outputs, target_sizes=target_sizes, threshold=0.3)
-    result = results[0]
-    
+def owl_text_detection():
+    logger.info("hello======")
+    texts = st.session_state.owl_text.split(",")
+    logger.info(texts)
+    if len(texts) > 0:
+        frame = st.session_state.current_frame
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        st.session_state.target_image_placeholder.image(frame)  
+        target_sizes = torch.Tensor([frame.shape[:2]])
+        model, processor = load_owl_model()
+        texts = [["a photo of a cat", "a photo of a dog"]]
+        inputs = processor(text=texts, images=frame, return_tensors="pt")
+        outputs = model(**inputs)
+        results = processor.post_process_object_detection(outputs=outputs, target_sizes=target_sizes, threshold=0.3)
+        result = results[0]
+        det = sv.Detections.from_transformers(result)
+        box_annotator = sv.BoxAnnotator()
+        annotated_frame = box_annotator.annotate(scene=frame.copy(), detections=det)
+        annotated_frame = np.array(annotated_frame)
+        #st.session_state.target_image_placeholder.image(annotated_frame)    
+    return 
 
 
 def get_one_target():
@@ -163,17 +176,6 @@ def get_one_target():
                 ]
                 d = call_gpt(messages)
                 st.session_state.analyse_result_placeholder.text(d)
-
-
-
-def owl_full_image_detect(): 
-    if ("target_desc_text" in st.session_state) and (st.session_state.target_desc_text!=""):
-        text = st.session_state.target_desc_text
-    else:
-        return 
-
-    frame = st.session_state.current_frame
-    owl_text_detection(text)
 
 
 

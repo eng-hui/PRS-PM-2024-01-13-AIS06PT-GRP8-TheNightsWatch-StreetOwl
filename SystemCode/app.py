@@ -8,7 +8,7 @@ import torch
 import pandas as pd
 import warnings
 from get_cap import get_cap
-from frame_process import draw_counting_lines, exit_count, get_one_target
+from frame_process import draw_counting_lines, exit_count, get_one_target, owl_text_detection
 from dotenv import load_dotenv
 from utils import logger
 import requests
@@ -94,6 +94,9 @@ def get_options():
         st.number_input("target_id", 0, key="target_id")
         st.button("Track", on_click=get_one_target)
     
+    with scan:
+        st.text_input("Owl Detection Input", key="owl_text")
+        st.button("Scan", on_click=owl_text_detection)
     logger.info("=========option========")
     return model_choice, url, confidence_threshold, frame_skip, vid_quality
 
