@@ -8,7 +8,7 @@ import torch
 import pandas as pd
 import warnings
 from get_cap import get_cap
-from frame_process import draw_counting_lines, exit_count, get_one_target, owl_text_detection
+from frame_process import draw_counting_lines, exit_count, get_one_target, owl_text_detection, load_owl_model
 from dotenv import load_dotenv
 from utils import logger
 import requests
@@ -39,6 +39,7 @@ def init_page_config():
             device = torch.device("cuda")
             device_name = torch.cuda.get_device_name(device)
         st.session_state.device_name = device_name
+        st.session_state.device = device
 
         logger.info("=========debug init===========")
         load_dotenv()
@@ -50,9 +51,8 @@ def init_page_config():
             st.session_state.frame_placeholder = frame_placeholder
         
         with main_right:
-            with st.expander("Result", expanded=True):
-                st.session_state.target_image_placeholder = st.empty()
-                st.session_state.analyse_result_placeholder = st.empty()
+            st.session_state.target_image_placeholder = st.empty()
+            st.session_state.analyse_result_placeholder = st.empty()
 
         # Create placeholders for metrics
         left_col, right_col = st.columns([1, 1])
@@ -65,8 +65,11 @@ def init_page_config():
         with right_col:
             st.session_state.livechart_data = pd.DataFrame(columns=['Detected'])
             st.session_state.livechart_placeholder = st.line_chart(st.session_state.livechart_data)
-            
-        # Create a placeholder for the video frame
+        
+        model, processor = load_owl_model()
+        st.session_state.owl_model = model
+        st.session_state.owl_processor = processor
+        #Create a placeholder for the video frame
         st.session_state.init_flag = True
 
 def analyse():
@@ -151,7 +154,9 @@ def main():
     # Load the YOLOv8 model
     @st.cache_resource
     def load_model(model_path):
-        return YOLO(model_path)
+        model = YOLO(model_path).to(st.session_state.device)
+        logger.info(model.device)
+        return model
     
 
     model = load_model(model_choice)

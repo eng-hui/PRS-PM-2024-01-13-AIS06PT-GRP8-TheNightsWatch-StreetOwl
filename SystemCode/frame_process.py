@@ -15,14 +15,18 @@ from transformers import Owlv2Processor, Owlv2ForObjectDetection
 import scipy
 import asyncio
 
+if (torch.cuda.is_available()):
+    device = torch.device("cuda")
+    device_name = torch.cuda.get_device_name(device)
 
 # Load the Owlv2 model
 @st.cache_resource
 def load_owl_model():
     processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-finetuned")
-    model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-finetuned")
+    model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-finetuned").cuda()
     logger.info(model.device)
     return  model, processor
+
 
 def numpy_to_base64(image_np: np.ndarray) -> str:
     image_pil = Image.fromarray(image_np)
@@ -89,19 +93,19 @@ def owl_text_detection():
     if len(texts) > 0:
         frame = st.session_state.current_frame
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        st.session_state.target_image_placeholder.image(frame)  
+        st.session_state.target_image_placeholder.image(frame, channels="RGB", use_column_width=True)  
         target_sizes = torch.Tensor([frame.shape[:2]])
-        model, processor = load_owl_model()
-        texts = [["a photo of a cat", "a photo of a dog"]]
-        inputs = processor(text=texts, images=frame, return_tensors="pt")
-        outputs = model(**inputs)
-        results = processor.post_process_object_detection(outputs=outputs, target_sizes=target_sizes, threshold=0.3)
+        #model, processor = load_owl_model()
+        inputs = st.session_state.owl_processor(text=texts, images=frame, return_tensors="pt")
+        inputs = {key: value.cuda() for key, value in inputs.items()}
+        outputs = st.session_state.owl_model(**inputs)
+        results = st.session_state.owl_processor.post_process_object_detection(outputs=outputs, target_sizes=target_sizes, threshold=0.3)
         result = results[0]
         det = sv.Detections.from_transformers(result)
         box_annotator = sv.BoxAnnotator()
         annotated_frame = box_annotator.annotate(scene=frame.copy(), detections=det)
         annotated_frame = np.array(annotated_frame)
-        #st.session_state.target_image_placeholder.image(annotated_frame)    
+        st.session_state.target_image_placeholder.image(annotated_frame)    
     return 
 
 
