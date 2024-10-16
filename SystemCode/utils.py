@@ -2,6 +2,8 @@ import requests
 from dotenv import load_dotenv
 import os
 from openai import OpenAI
+from loguru import logger
+import json
 load_dotenv()
 
 
@@ -18,4 +20,7 @@ def call_gpt(messages, model="gpt-4o-mini", require_json=True):
         messages=messages,
         response_format=response_format
     )
-    return completion.choices[0].message.content
+    if require_json:
+        return json.loads(completion.choices[0].message.content)
+    else:
+        return completion.choices[0].message.content

@@ -7,6 +7,26 @@ import numpy as np
 import base64
 from io import BytesIO
 from PIL import Image
+from utils import logger
+import requests
+import torch
+import supervision as sv
+from transformers import Owlv2Processor, Owlv2ForObjectDetection
+import scipy
+import asyncio
+
+if (torch.cuda.is_available()):
+    device = torch.device("cuda")
+    device_name = torch.cuda.get_device_name(device)
+
+# Load the Owlv2 model
+@st.cache_resource
+def load_owl_model():
+    processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-finetuned")
+    model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-finetuned").cuda()
+    logger.info(model.device)
+    return  model, processor
+
 
 def numpy_to_base64(image_np: np.ndarray) -> str:
     image_pil = Image.fromarray(image_np)
@@ -30,52 +50,138 @@ def has_crossed_line(prev_pos, curr_pos, line_pos):
     return (prev_pos < line_pos and curr_pos >= line_pos) or (prev_pos > line_pos and curr_pos <= line_pos)
 
 
+def desc_to_target_id(target_desc_text):
+    annotated_frame = st.session_state.annotated_frame
+    target_image = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+    #st.image(target_image)
+    img_str = numpy_to_base64(target_image)
+    prompt = f"""extract the target_id from user's input
+===user_input===
+{target_desc_text}
+===user_input end===
+return in standard json format like:"""+\
+"""
+        {
+            "target_id": int
+        }
+        """
+    logger.info(prompt)
+    messages = [
+            {"role": "system", "content": "You are here to help analyse image from monitor."},
+            {
+                "role": "user",
+                "content":[{
+                    "type": "image_url",
+                    "image_url": {
+                    "url": f"data:image/jpeg;base64,{img_str}"
+                    }}]
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+    ]
+    d = call_gpt(messages)
+    logger.info(f"get target_id: {d.get('target_id')}")
+    return d.get("target_id")
+
+
+def owl_text_detection():
+    logger.info("hello======")
+    texts = st.session_state.owl_text.split(",")
+    logger.info(texts)
+    if len(texts) > 0:
+        frame = st.session_state.current_frame
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        st.session_state.target_image_placeholder.image(frame, channels="RGB", use_column_width=True)  
+        target_sizes = torch.Tensor([frame.shape[:2]])
+        #model, processor = load_owl_model()
+        inputs = st.session_state.owl_processor(text=texts, images=frame, return_tensors="pt")
+        inputs = {key: value.cuda() for key, value in inputs.items()}
+        outputs = st.session_state.owl_model(**inputs)
+        results = st.session_state.owl_processor.post_process_object_detection(outputs=outputs, target_sizes=target_sizes, threshold=0.3)
+        result = results[0]
+        det = sv.Detections.from_transformers(result)
+        box_annotator = sv.BoxAnnotator()
+        annotated_frame = box_annotator.annotate(scene=frame.copy(), detections=det)
+        annotated_frame = np.array(annotated_frame)
+        st.session_state.target_image_placeholder.image(annotated_frame)    
+    return 
+
+
 def get_one_target():
+    logger.info("===========start=========")
+    target_track_id = st.session_state.target_id
+    logger.info(st.session_state.target_id)
+
+    if ("target_desc_text" in st.session_state) and (st.session_state.target_desc_text!=""):
+        target_track_id  = desc_to_target_id(st.session_state.target_desc_text)
+        st.session_state.target_track_id = target_track_id
+    elif target_track_id is not None:
+        st.session_state.target_track_id = target_track_id
+    else:
+        return 
+
+    
+
     frame = st.session_state.current_frame
     track_results = st.session_state.track_results
     if track_results[0].boxes is not None and track_results[0].boxes.id is not None:
-        box = track_results[0].boxes.xywh[0]
-        x_center, y_center, w, h  = box
-        # Calculate the top-left corner from the center (ensure the values are integers)
-        x = int(x_center - w // 2)
-        y = int(y_center - h // 2)
+        for box, track_id in zip(track_results[0].boxes.xywh, track_results[0].boxes.id):
+            if track_id == target_track_id:
+                logger.info(f"{track_id} matched")
+                box = track_results[0].boxes.xywh[0]
+                x_center, y_center, w, h  = box
+                # Calculate the top-left corner from the center (ensure the values are integers)
+                x = int(x_center - w // 2)
+                y = int(y_center - h // 2)
 
-        # Ensure that the calculated coordinates are within the image bounds
-        x = max(0, x)  # Make sure x is not less than 0
-        y = max(0, y)  # Make sure y is not less than 0
-        x_end = min(x + w, frame.shape[1])  # Ensure the width doesn't exceed image width
-        y_end = min(y + h, frame.shape[0])  # Ensure the height doesn't exceed image height
+                # Ensure that the calculated coordinates are within the image bounds
+                x = max(0, x)  # Make sure x is not less than 0
+                y = max(0, y)  # Make sure y is not less than 0
+                x_end = min(x + w, frame.shape[1])  # Ensure the width doesn't exceed image width
+                y_end = min(y + h, frame.shape[0])  # Ensure the height doesn't exceed image height
 
-        # Crop the target image from the frame using NumPy slicing
-        target_image = frame[int(y):int(y_end), int(x):int(x_end)]
-        st.image(target_image)
-        img_str = numpy_to_base64(target_image)
-        prompt = """Analyse the above image like you are a super detective, return infomation from the person in the center of the image
-return in standard json format like:
-{
-    "gender": str,
-    "clothing": Dict,
-    "age": str,
-    "note": text
-}
-"""
-        messages = [
-                {"role": "system", "content": "You are here to help analyse image from monitor."},
-                {
-                    "role": "user",
-                    "content":[{
-                        "type": "image_url",
-                        "image_url": {
-                        "url": f"data:image/jpeg;base64,{img_str}"
-                        }}]
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-        ]
-        d = call_gpt(messages)
-        st.write(d)
+                # get some more backgound infomation
+                x = max(0, x*0.9) 
+                y = max(0, y*0.9) 
+                x_end = min(x_end*1.1, frame.shape[1]) 
+                y_end = min(y_end*1.1, frame.shape[1]) 
+
+                # Crop the target image from the frame using NumPy slicing
+                target_image = frame[int(y):int(y_end), int(x):int(x_end)]
+                target_image = cv2.cvtColor(target_image, cv2.COLOR_BGR2RGB)
+                #st.image(target_image)
+                st.session_state.target_image_placeholder.image(target_image)
+                img_str = numpy_to_base64(target_image)
+                prompt = """Analyse the above image like you are a super detective, return infomation from the person in the center of the image
+        return in standard json format like:
+        {
+            "gender": {"value":str(MALE or FEMALE), "confidence":float}
+            "clothing": Dict,
+            "age": {"value":str(KID or YOUNG OR MID-AGE or OLD), "confidence":float},
+            "note": text
+        }
+        """
+                messages = [
+                        {"role": "system", "content": "You are here to help analyse image from monitor."},
+                        {
+                            "role": "user",
+                            "content":[{
+                                "type": "image_url",
+                                "image_url": {
+                                "url": f"data:image/jpeg;base64,{img_str}"
+                                }}]
+                        },
+                        {
+                            "role": "user",
+                            "content": prompt
+                        }
+                ]
+                d = call_gpt(messages)
+                st.session_state.analyse_result_placeholder.text(d)
+
+
 
 
 
