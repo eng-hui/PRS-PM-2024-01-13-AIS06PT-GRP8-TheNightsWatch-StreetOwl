@@ -1,0 +1,6 @@
+train: Office Worker v2/train/
+val: Office Worker v2/valid/
+test: Office Worker v2/test/
+
+nc: 1
+names: ['office-16TC']
