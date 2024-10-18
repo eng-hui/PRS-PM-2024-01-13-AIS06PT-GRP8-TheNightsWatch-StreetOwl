@@ -30,7 +30,7 @@ def init_page_config():
             layout="wide",
             initial_sidebar_state="expanded",
         )
-        logo_col, title_col = st.columns([1,6])
+        _, title_col = st.columns([1,6])
         #logo_col.image("Images/streetowl_logo.png")
         title_col.title("Street Owl Monitoring")
 
@@ -58,18 +58,41 @@ def init_page_config():
         # Create placeholders for metrics
         left_col, right_col = st.columns([1, 1])
         with left_col:
-            temp_row = st.columns([0.5,1,1])
-            with temp_row[1]: 
+            temp_row = st.columns([1.2,1,0.8])
+            with temp_row[0]: 
                 st.session_state.density_placeholder =  st.empty()
                 _, _,image_url = get_density_display(1) # default
                 st.session_state.density_state = 1
                 st.session_state.density_image = st.image(image_url, use_column_width=True)
 
+            with temp_row[1]:
+                temp_text = """
+                <div style="background-color: orange; border-radius: 8 px; text-align: center; color: white;">Human Detected</div>
+                """
+                st.markdown(temp_text, unsafe_allow_html=True)
+                st.session_state.detected_placeholder = st.empty()
 
-            st.session_state.fps_placeholder = st.empty()
-            st.session_state.detected_placeholder = st.empty()
-            st.session_state.left_exits_placeholder = st.empty()
-            st.session_state.right_exits_placeholder = st.empty()
+            with temp_row[2]:
+                temp_text = """
+                <p style="background-color: blue; border-radius: 8 px; text-align: center; color: white;">FPS</p>
+                """
+                st.markdown(temp_text, unsafe_allow_html=True)
+                st.session_state.fps_placeholder = st.empty()
+
+
+            temp_row = st.columns([1,1])
+            with temp_row[0]:
+                temp_text = """
+                <p style="background-color: purple; border-radius: 8 px; text-align: center; color: white;">Exit Left</p>
+                """
+                st.markdown(temp_text, unsafe_allow_html=True)
+                st.session_state.left_exits_placeholder = st.empty()
+            with temp_row[1]:
+                temp_text = """
+                <p style="background-color: purple; border-radius: 8 px; text-align: center; color: white;">Exit Right</p>
+                """
+                st.markdown(temp_text, unsafe_allow_html=True)
+                st.session_state.right_exits_placeholder = st.empty()
             
         with right_col:
             st.session_state.livechart_data = pd.DataFrame(columns=['Detected'])
@@ -141,10 +164,17 @@ def update_placeholders(annotated_frame):
     else : 
         dense_level = 3
 
-    if density_state != dense_level: 
-        logger.info(f"density state changed from {density_state} to {dense_level}")
-        st.session_state.density_state  = dense_level
-        color, label,image_url = get_density_display(dense_level)
+    # Update density state change
+    st.session_state.track_density_history.append(dense_level)
+    density_history = st.session_state.track_density_history
+    # check for at least 20 frames before changing density state
+    if len(density_history) >= 20:
+        values, counts = np.unique(st.session_state.track_density_history, return_counts=True)
+        mode_value = values[np.argmax(counts)]
+
+        # logger.info(f"density state changed from {density_state} to {dense_level}")
+        st.session_state.density_state  = mode_value
+        color, label,image_url = get_density_display(mode_value)
 
         density_markdown = f"""
         <p style="background-color: {color}; border-radius: 8 px; text-align: center; color: white;">
@@ -152,13 +182,15 @@ def update_placeholders(annotated_frame):
         </p>
         """
         density_placeholder.markdown(density_markdown, unsafe_allow_html=True)
-        density_image.image(image_url, width=200)
+        density_image.image(image_url, use_column_width=True)
+        # reset the state once the density state is changed
+        st.session_state.track_density_history = []
+    
+    fps_placeholder.markdown(f" <div width='100%' align='center'><font size=14>{int(st.session_state.fps)} </font></div>", unsafe_allow_html=True)
+    detected_placeholder.markdown(f" <div width='100%' align='center'><font size=14>{int(st.session_state.num_objects)} </font></div>", unsafe_allow_html=True)
 
-
-    fps_placeholder.text(f"FPS: {int(st.session_state.fps)}")
-    detected_placeholder.text(f"Detected Objects: {st.session_state.num_objects}")
-    left_exits_placeholder.text(f"Left Exits: {st.session_state.left_exit_count}")
-    right_exits_placeholder.text(f"Right Exits: {st.session_state.right_exit_count}")
+    left_exits_placeholder.markdown(f" <div width='100%' align='center'><font size=14>{int(st.session_state.left_exit_count)} </font></div>", unsafe_allow_html=True)
+    right_exits_placeholder.markdown(f" <div width='100%' align='center'><font size=14>{int(st.session_state.right_exit_count)} </font></div>", unsafe_allow_html=True)
 
     # Update live chart
     if livechart_placeholder is not None:
@@ -215,6 +247,7 @@ def main():
     st.session_state.track_history = {}
     st.session_state.left_exited_ids = set()
     st.session_state.right_exited_ids = set()
+    st.session_state.track_density_history = []
 
     # Define counting lines
     st.session_state.frame_width = frame_width 
