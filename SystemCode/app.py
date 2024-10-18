@@ -1,3 +1,4 @@
+import random
 import streamlit as st
 import cv2
 import time
@@ -57,6 +58,14 @@ def init_page_config():
         # Create placeholders for metrics
         left_col, right_col = st.columns([1, 1])
         with left_col:
+            temp_row = st.columns([0.5,1,1])
+            with temp_row[1]: 
+                st.session_state.density_placeholder =  st.empty()
+                _, _,image_url = get_density_display(1) # default
+                st.session_state.density_state = 1
+                st.session_state.density_image = st.image(image_url, use_column_width=True)
+
+
             st.session_state.fps_placeholder = st.empty()
             st.session_state.detected_placeholder = st.empty()
             st.session_state.left_exits_placeholder = st.empty()
@@ -103,7 +112,14 @@ def get_options():
     logger.info("=========option========")
     return model_choice, url, confidence_threshold, frame_skip, vid_quality
 
-
+def get_density_display(level):
+    if level == 1:
+        return "green", "Sparse","Images/owls_sparse.png"
+    elif level == 2:
+        return "orange", "Medium","Images/owls_medium.png"
+    elif level == 3:
+        return "red", "Crowded","Images/owls_crowded.png"
+    
 def update_placeholders(annotated_frame):
     fps_placeholder = st.session_state.fps_placeholder
     detected_placeholder = st.session_state.detected_placeholder
@@ -112,6 +128,32 @@ def update_placeholders(annotated_frame):
     livechart_placeholder = st.session_state.livechart_placeholder
     livechart_data = st.session_state.livechart_data
     frame_placeholder = st.session_state.frame_placeholder
+    density_placeholder = st.session_state.density_placeholder
+    density_image = st.session_state.density_image
+    density_state = st.session_state.density_state
+
+    # test density output only
+    # TODO
+    if st.session_state.num_objects < 4:
+        dense_level = 1
+    elif st.session_state.num_objects < 8:
+        dense_level = 2
+    else : 
+        dense_level = 3
+
+    if density_state != dense_level: 
+        logger.info(f"density state changed from {density_state} to {dense_level}")
+        st.session_state.density_state  = dense_level
+        color, label,image_url = get_density_display(dense_level)
+
+        density_markdown = f"""
+        <p style="background-color: {color}; border-radius: 8 px; text-align: center; color: white;">
+            Density : {label}
+        </p>
+        """
+        density_placeholder.markdown(density_markdown, unsafe_allow_html=True)
+        density_image.image(image_url, width=200)
+
 
     fps_placeholder.text(f"FPS: {int(st.session_state.fps)}")
     detected_placeholder.text(f"Detected Objects: {st.session_state.num_objects}")
@@ -160,11 +202,6 @@ def main():
     
 
     model = load_model(model_choice)
-    # vid_quality = st.sidebar.selectbox(
-    #     "Select Video Quality",
-    #     ("360p", "480p", "720p", "1080p", "best")
-    # )
-
 
     # Initialize video capture
     cap = get_cap(url, vid_quality)
