@@ -1,3 +1,4 @@
+import random
 import streamlit as st
 import cv2
 import time
@@ -17,33 +18,67 @@ import torch
 import supervision as sv
 from transformers import Owlv2Processor, Owlv2ForObjectDetection
 import scipy
+from cnn_model import CNNModel
+from torchvision import transforms
+from PIL import Image
 
 # Suppress all RuntimeWarnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+st.set_page_config(
+    page_title="Street Owl",
+    page_icon=":owl:",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
+
+def render_headers():
+    temp_text = """
+    <p style="background-color: purple; border-radius: 8 px; text-align: center; color: white;">Exit Left</p>
+    """
+    st.session_state.left_exits_header.html(temp_text)
+    temp_text = """
+    <p style="background-color: purple; border-radius: 8 px; text-align: center; color: white;">Exit Left</p>
+    """
+    st.session_state.right_exits_header.html(temp_text)
+    temp_text = """
+    <div style="background-color: orange; border-radius: 8 px; text-align: center; color: white;">Human Detected</div>
+    """
+    st.session_state.detected_header.html(temp_text)
+
+    temp_text = """
+    <p style="background-color: blue; border-radius: 8 px; text-align: center; color: white;">FPS</p>
+    """
+    st.session_state.fps_header.html(temp_text)
+
+
+
 
 def init_page_config():
     if "init_flag" not in st.session_state:
-        st.set_page_config(
-            page_title="Street Owl",
-            page_icon=":owl:",
-            layout="wide",
-            initial_sidebar_state="expanded",
-        )
-        logo_col, title_col = st.columns([1,6])
-        #logo_col.image("Images/streetowl_logo.png")
-        title_col.title("Street Owl Monitoring")
+
 
         # Check for GPU availability
         device_name = "CPU"
         if (torch.cuda.is_available()):
             device = torch.device("cuda")
             device_name = torch.cuda.get_device_name(device)
+
+        # load model
+        model = CNNModel(num_classes=3)
+        model.load_state_dict(torch.load("best_density_model.pt"))
+        model.to(device)
+        st.session_state.densitymodel = model
         st.session_state.device_name = device_name
         st.session_state.device = device
 
         logger.info("=========debug init===========")
         load_dotenv()
 
+        _, title_col = st.columns([1,6])
+        #logo_col.image("Images/streetowl_logo.png")
+        # title_col.title("Street Owl Monitoring")
+        st.session_state.title_col = st.html("<h1>Street Owl Monitoring</h1>")
+        
         main_left, main_right = st.columns([2,1])
         with main_left:
             with st.expander("Show/Hide Video Frame", expanded=True):
@@ -57,10 +92,32 @@ def init_page_config():
         # Create placeholders for metrics
         left_col, right_col = st.columns([1, 1])
         with left_col:
-            st.session_state.fps_placeholder = st.empty()
-            st.session_state.detected_placeholder = st.empty()
-            st.session_state.left_exits_placeholder = st.empty()
-            st.session_state.right_exits_placeholder = st.empty()
+            temp_row = st.columns([1.2,0.9,0.9])
+            with temp_row[0]: 
+                temp_text = """
+                <div style="background-color: grey; border-radius: 8 px; text-align: center; color: white;">Waiting...</div>
+                """
+                st.session_state.density_placeholder =  st.html(temp_text)
+                _, _,image_url = get_density_display(1) # default
+                st.session_state.density_state = 1
+                st.session_state.density_image = st.image(image_url, use_column_width=True)
+
+            with temp_row[1]:
+                st.session_state.detected_header = st.html("")
+                st.session_state.detected_placeholder = st.empty()
+
+            with temp_row[2]:
+                st.session_state.fps_header = st.html("")
+                st.session_state.fps_placeholder = st.empty()
+
+
+            temp_row = st.columns([1,1])
+            with temp_row[0]:
+                st.session_state.left_exits_header = st.html("")
+                st.session_state.left_exits_placeholder = st.empty()
+            with temp_row[1]:
+                st.session_state.right_exits_header = st.html("")
+                st.session_state.right_exits_placeholder = st.empty()
             
         with right_col:
             st.session_state.livechart_data = pd.DataFrame(columns=['Detected'])
@@ -103,7 +160,14 @@ def get_options():
     logger.info("=========option========")
     return model_choice, url, confidence_threshold, frame_skip, vid_quality
 
-
+def get_density_display(level):
+    if level == 1:
+        return "green", "Sparse","Images/owls_sparse.png"
+    elif level == 2:
+        return "orange", "Dense","Images/owls_dense.png"
+    elif level == 3:
+        return "red", "Crowded","Images/owls_crowded.png"
+    
 def update_placeholders(annotated_frame):
     fps_placeholder = st.session_state.fps_placeholder
     detected_placeholder = st.session_state.detected_placeholder
@@ -112,11 +176,51 @@ def update_placeholders(annotated_frame):
     livechart_placeholder = st.session_state.livechart_placeholder
     livechart_data = st.session_state.livechart_data
     frame_placeholder = st.session_state.frame_placeholder
+    density_placeholder = st.session_state.density_placeholder
+    density_image = st.session_state.density_image
+    density_state = st.session_state.density_state
 
-    fps_placeholder.text(f"FPS: {int(st.session_state.fps)}")
-    detected_placeholder.text(f"Detected Objects: {st.session_state.num_objects}")
-    left_exits_placeholder.text(f"Left Exits: {st.session_state.left_exit_count}")
-    right_exits_placeholder.text(f"Right Exits: {st.session_state.right_exit_count}")
+    title_col = st.session_state.title_col
+    title_col.html("<h1>Street Owl Monitoring</h1>")
+    render_headers()
+
+    # existing density level output
+    dense_level = st.session_state.current_density + 1
+    human_count = st.session_state.num_objects
+    # ensemble results
+    if human_count <= 10 and dense_level >= 2:
+        dense_level = 2
+    elif human_count <= 5 and dense_level >= 2:
+        dense_level = 1
+
+
+    # Update density state change
+    st.session_state.track_density_history.append(dense_level)
+    density_history = st.session_state.track_density_history
+    # check for at least 20 frames before changing density state
+    if len(density_history) >= 20:
+        values, counts = np.unique(st.session_state.track_density_history, return_counts=True)
+        mode_value = values[np.argmax(counts)]
+
+        # logger.info(f"density state changed from {density_state} to {dense_level}")
+        st.session_state.density_state  = mode_value
+        color, label,image_url = get_density_display(mode_value)
+
+        density_markdown = f"""
+        <p style="background-color: {color}; border-radius: 8 px; text-align: center; color: white;">
+            Density : {label}
+        </p>
+        """
+        density_placeholder.html(density_markdown)
+        density_image.image(image_url, use_column_width=True)
+        # reset the state once the density state is changed
+        st.session_state.track_density_history = []
+    
+    fps_placeholder.html(f" <div width='100%' align='center' valign='center'><font size=14>{int(st.session_state.fps)} </font></div>")
+    detected_placeholder.html(f" <div width='100%' align='center'><font size=14>{int(st.session_state.num_objects)} </font></div>")
+
+    left_exits_placeholder.html(f" <div width='100%' align='center'><font size=14>{int(st.session_state.left_exit_count)} </font></div>")
+    right_exits_placeholder.html(f" <div width='100%' align='center'><font size=14>{int(st.session_state.right_exit_count)} </font></div>")
 
     # Update live chart
     if livechart_placeholder is not None:
@@ -146,6 +250,28 @@ def add_overlay(frame):
     annotated_frame = cv2.addWeighted(frame, 1, overlay, alpha, 0)
     return annotated_frame
 
+# for density inference
+preprocess = transforms.Compose([
+    transforms.Resize((512, 512)),  # Resize to 512x512
+    transforms.ToTensor(),          # Convert image to tensor
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])  # Normalize to [-1, 1]
+])
+
+def cv2_to_pil(frame):
+    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(image)
+
+def preprocess_frame(frame):
+    pil_image = cv2_to_pil(frame)  # Convert the frame to PIL image
+    image = preprocess(pil_image)  # Apply the transformations
+    image = image.unsqueeze(0)     # Add batch dimension
+    image = image.to(st.session_state.device)  
+    return image
+
+def predict_frame(model, frame):
+    image_tensor = preprocess_frame(frame)  # Preprocess the frame
+    predictions = model.predict(image_tensor)  # Predict class
+    return predictions
 
 def main():
     init_page_config()
@@ -160,11 +286,6 @@ def main():
     
 
     model = load_model(model_choice)
-    # vid_quality = st.sidebar.selectbox(
-    #     "Select Video Quality",
-    #     ("360p", "480p", "720p", "1080p", "best")
-    # )
-
 
     # Initialize video capture
     cap = get_cap(url, vid_quality)
@@ -178,6 +299,7 @@ def main():
     st.session_state.track_history = {}
     st.session_state.left_exited_ids = set()
     st.session_state.right_exited_ids = set()
+    st.session_state.track_density_history = []
 
     # Define counting lines
     st.session_state.frame_width = frame_width 
@@ -186,7 +308,7 @@ def main():
     st.session_state.right_line = int(frame_width * 0.8)
     st.session_state.process_flag = True
     
-        
+    density_model = st.session_state.densitymodel    
 
 
     frame_counter = 0
@@ -203,6 +325,9 @@ def main():
             track_results = model.track(frame, persist=True, classes=0, conf=confidence_threshold, tracker="bytetrack.yaml",verbose=False)
             st.session_state.current_frame = frame
             st.session_state.track_results = track_results
+
+            predicted_density = predict_frame(density_model, frame)
+            st.session_state.current_density = predicted_density.item()
 
             annotated_frame = frame
             # annotated_frame = frame.copy()
