@@ -20,3 +20,4 @@ dependencies:
       - loguru
       - supervision
       - transformers
+      - scikit-learn
