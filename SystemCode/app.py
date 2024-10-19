@@ -18,6 +18,9 @@ import torch
 import supervision as sv
 from transformers import Owlv2Processor, Owlv2ForObjectDetection
 import scipy
+from cnn_model import CNNModel
+from torchvision import transforms
+from PIL import Image
 
 # Suppress all RuntimeWarnings
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -59,6 +62,12 @@ def init_page_config():
         if (torch.cuda.is_available()):
             device = torch.device("cuda")
             device_name = torch.cuda.get_device_name(device)
+
+        # load model
+        model = CNNModel(num_classes=3)
+        model.load_state_dict(torch.load("best_density_model.pt"))
+        model.to(device)
+        st.session_state.densitymodel = model
         st.session_state.device_name = device_name
         st.session_state.device = device
 
@@ -175,14 +184,15 @@ def update_placeholders(annotated_frame):
     title_col.html("<h1>Street Owl Monitoring</h1>")
     render_headers()
 
-    # test density output only
-    # TODO
-    if st.session_state.num_objects < 4:
-        dense_level = 1
-    elif st.session_state.num_objects < 8:
+    # existing density level output
+    dense_level = st.session_state.current_density + 1
+    human_count = st.session_state.num_objects
+    # ensemble results
+    if human_count <= 10 and dense_level >= 2:
         dense_level = 2
-    else : 
-        dense_level = 3
+    elif human_count <= 5 and dense_level >= 2:
+        dense_level = 1
+
 
     # Update density state change
     st.session_state.track_density_history.append(dense_level)
@@ -240,6 +250,28 @@ def add_overlay(frame):
     annotated_frame = cv2.addWeighted(frame, 1, overlay, alpha, 0)
     return annotated_frame
 
+# for density inference
+preprocess = transforms.Compose([
+    transforms.Resize((512, 512)),  # Resize to 512x512
+    transforms.ToTensor(),          # Convert image to tensor
+    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])  # Normalize to [-1, 1]
+])
+
+def cv2_to_pil(frame):
+    image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(image)
+
+def preprocess_frame(frame):
+    pil_image = cv2_to_pil(frame)  # Convert the frame to PIL image
+    image = preprocess(pil_image)  # Apply the transformations
+    image = image.unsqueeze(0)     # Add batch dimension
+    image = image.to(st.session_state.device)  
+    return image
+
+def predict_frame(model, frame):
+    image_tensor = preprocess_frame(frame)  # Preprocess the frame
+    predictions = model.predict(image_tensor)  # Predict class
+    return predictions
 
 def main():
     init_page_config()
@@ -276,7 +308,7 @@ def main():
     st.session_state.right_line = int(frame_width * 0.8)
     st.session_state.process_flag = True
     
-        
+    density_model = st.session_state.densitymodel    
 
 
     frame_counter = 0
@@ -293,6 +325,9 @@ def main():
             track_results = model.track(frame, persist=True, classes=0, conf=confidence_threshold, tracker="bytetrack.yaml",verbose=False)
             st.session_state.current_frame = frame
             st.session_state.track_results = track_results
+
+            predicted_density = predict_frame(density_model, frame)
+            st.session_state.current_density = predicted_density.item()
 
             annotated_frame = frame
             # annotated_frame = frame.copy()
