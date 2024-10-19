@@ -21,3 +21,5 @@ dependencies:
       - supervision
       - transformers
       - scikit-learn
+      - torchview
+      - graphviz
