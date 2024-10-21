@@ -93,8 +93,13 @@ def get_options():
             ("360p", "480p", "720p", "1080p", "best")
         )
     with tracking:
+        s = """Gender: str, MALE or FEMALE, with confidence score
+Clothing: Dict
+Age: str, KID or YOUNG OR MID-AGE or OLD
+Note: more information about the target"""
         st.text_input("Target Desc Text", key="target_desc_text")
-        st.number_input("target_id", 0, key="target_id")
+        st.number_input("Target ID", 0, key="target_id")
+        st.text_area("Result Format Requirement", s, key="result_requirement", height=200)
         st.button("Track", on_click=get_one_target)
     
     with scan:
