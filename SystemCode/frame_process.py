@@ -154,14 +154,11 @@ def get_one_target():
                 #st.image(target_image)
                 st.session_state.target_image_placeholder.image(target_image)
                 img_str = numpy_to_base64(target_image)
-                prompt = """Analyse the above image like you are a super detective, return infomation from the person in the center of the image
-        return in standard json format like:
-        {
-            "gender": {"value":str(MALE or FEMALE), "confidence":float}
-            "clothing": Dict,
-            "age": {"value":str(KID or YOUNG OR MID-AGE or OLD), "confidence":float},
-            "note": text
-        }
+                prompt = f"""Analyse the above image like you are a super detective, return infomation from the person in the center of the image
+results should contain following keys:
+{st.session_state.result_requirement}
+return result in standard json format
+Result:
         """
                 messages = [
                         {"role": "system", "content": "You are here to help analyse image from monitor."},
@@ -179,7 +176,7 @@ def get_one_target():
                         }
                 ]
                 d = call_gpt(messages)
-                st.session_state.analyse_result_placeholder.text(d)
+                st.session_state.analyse_result_placeholder.json(d)
 
 
 
