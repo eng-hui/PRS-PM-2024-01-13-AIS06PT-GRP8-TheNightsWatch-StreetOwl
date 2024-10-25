@@ -34,38 +34,25 @@
 
 ---
 
-## SECTION 3 : CREDITS / PROJECT CONTRIBUTION
+## SECTION 3 : PROJECT TEAM MEMBERS
 
-| Official Full Name  | Student ID | Work Items | Email  |
+| Official Full Name  | Student ID | Email  |
 | :------------ |:---------------:| :-----| :-----|
-| Tan Eng Hui | A0291201W || e1330340@u.nus.edu |
-| Hu Lei | A0120681N || e1329735@u.nus.edu |
-| Wang Tao | A0291189R || e1330328@u.nus.edu |
-| Ho Zi Hao Timothy| A0150123B || e0015027@u.nus.edu |
-
-
----
-
-## SECTION 4 : VIDEO OF USE CASE DEMO AND TECHNICAL DESIGN 
-
-| Promo/Demo Video | Technical Design video | 
-| :------------: |:---------------:| 
-| <a href="#"><img src="Images/logo_clean.png" width="232" height="197" alt="place holder"></a> | <a href="#">  <img src="Images/logo_clean.png" width="232" height="197" alt="place holder"></a> | 
-
-
-
+| Tan Eng Hui | A0291201W | e1330340@u.nus.edu |
+| Hu Lei | A0120681N | e1329735@u.nus.edu |
+| Wang Tao | A0291189R | e1330328@u.nus.edu |
+| Ho Zi Hao Timothy| A0150123B | e0015027@u.nus.edu |
 
 ---
 
-## SECTION 5 : PROJECT REPORT
+## SECTION 4 : PROJECT REPORT
 
 Refer to [Project Report.pdf](ProjectReport/Project%20Report.pdf) in the **ProjectReport** folder
 
 
-
 ---
 
-## SECTION 6 : DEPLOYMENT AND USER GUIDE
+## SECTION 5 : DEPLOYMENT AND USER GUIDE
 
 You can also refer to **Installation/Deployment Guide** and **User Guide** respectively at appendix section in [Project Report.pdf](ProjectReport/Project%20Report.pdf). 
 
