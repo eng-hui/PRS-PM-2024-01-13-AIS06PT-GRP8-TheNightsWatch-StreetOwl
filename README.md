@@ -60,7 +60,7 @@ You can  refer to  **User Guide** at appendix section in [Project Report.pdf](Pr
 **Prerequisite:**
 - Graphic card with CUDA support*  
 - Anaconda (python 3.10)  
-*Recommended to use GPU, edit the environment.yml according if CUDA GPU is not available  
+*Recommended to use GPU, edit the environment.yml packages that support CPU accordingly if CUDA GPU is not available  
 
 **Installation and Deployment Instructions:**
 
