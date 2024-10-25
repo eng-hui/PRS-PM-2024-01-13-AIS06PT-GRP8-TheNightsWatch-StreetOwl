@@ -9,7 +9,7 @@
 
 ---
 
-## SECTION 2 : EXECUTIVE SUMMARY / PAPER ABSTRACT
+## SECTION 2 : EXECUTIVE SUMMARY
 #### Project Overview  
 Retailers, event organisers, and municipal planners often lack tools to analyse street-level crowd patterns, density, and movement in real-time, which could provide valuable insights for optimising operations, marketing, and resource allocation. Although many public spaces are monitored by street-view CCTV systems, these are typically used only for security, leaving their full potential for business and operational insights untapped. Street Owl transforms live video feeds from street-view CCTV into actionable crowd analytics, enabling stakeholders to understand crowd dynamics and respond effectively to on-the-ground conditions.
 
