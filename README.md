@@ -30,7 +30,7 @@ Street Owl aims to broaden its capabilities by integrating with a wider range of
 
 ---
 
-#### SECTION 3 : PROJECT TEAM MEMBERS
+## SECTION 3 : PROJECT TEAM MEMBERS
 
 | Official Full Name  | Student ID | Email  |
 | :------------ |:---------------:| :-----|
