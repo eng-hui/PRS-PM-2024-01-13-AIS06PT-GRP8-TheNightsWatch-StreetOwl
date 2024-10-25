@@ -10,31 +10,27 @@
 ---
 
 ## SECTION 2 : EXECUTIVE SUMMARY / PAPER ABSTRACT
-#### Problem Statement and Proposed Solution 
+#### Project Overview  
+Retailers, event organisers, and municipal planners often lack tools to analyse street-level crowd patterns, density, and movement in real-time, which could provide valuable insights for optimising operations, marketing, and resource allocation. Although many public spaces are monitored by street-view CCTV systems, these are typically used only for security, leaving their full potential for business and operational insights untapped. Street Owl transforms live video feeds from street-view CCTV into actionable crowd analytics, enabling stakeholders to understand crowd dynamics and respond effectively to on-the-ground conditions.
 
-[Place Holder]
+#### Solution Benefits  
+Street Owl provides a unique solution by offering:
 
- 
+1. **Real-time crowd detection and density classification**, allowing retailers and other stakeholders to monitor public foot traffic, peak times, and congestion points outside their premises.
+2. **Seamless integration with existing street-view CCTV systems**, avoiding the need for additional equipment and making advanced analytics accessible through current infrastructure.
+3. **Actionable, location-based insights** that support smarter decision-making for staffing, marketing efforts, event planning, and public safety, enabling stakeholders to improve both customer engagement and operational efficiency.
 
-#### Differentiation from Existing Markets 
+#### Market Landscape and Opportunity  
+In Singapore’s highly urbanised setting, efficient use of public space and insight into pedestrian flow are essential for both businesses and public safety. With extensive street-level CCTV coverage and constant activity in retail and commercial areas, Singapore provides an ideal environment for Street Owl’s crowd analytics platform. By analysing foot traffic and crowd patterns, the platform enables retailers, event organisers, and city officials to make informed decisions on staffing, marketing, and resource management, enhancing customer experiences and public engagement.
 
-[Place Holder]
+Though tailored for Singapore, Street Owl’s technology is also applicable to other high-density urban areas worldwide, helping stakeholders globally unlock the potential of existing surveillance systems for strategic urban management and improved customer interactions.
 
- 
-
-#### Market Positioning 
-
-[Place Holder]
-
- 
-
-#### Conclusion and Future Prospects 
-
-[Place Holder]
+#### Conclusion and Future Prospects  
+Street Owl aims to broaden its capabilities by integrating with a wider range of surveillance systems and refining its analytics platform. This will support diverse stakeholders in accessing reliable crowd insights from street-view data, ultimately fostering more responsive, data-driven urban spaces.
 
 ---
 
-## SECTION 3 : PROJECT TEAM MEMBERS
+#### SECTION 3 : PROJECT TEAM MEMBERS
 
 | Official Full Name  | Student ID | Email  |
 | :------------ |:---------------:| :-----|
