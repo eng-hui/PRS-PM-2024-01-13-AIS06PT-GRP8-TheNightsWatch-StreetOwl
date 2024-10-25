@@ -37,7 +37,7 @@
 ## SECTION 3 : PROJECT TEAM MEMBERS
 
 | Official Full Name  | Student ID | Email  |
-| :------------ |:---------------:| :-----| :-----|
+| :------------ |:---------------:| :-----|
 | Tan Eng Hui | A0291201W | e1330340@u.nus.edu |
 | Hu Lei | A0120681N | e1329735@u.nus.edu |
 | Wang Tao | A0291189R | e1330328@u.nus.edu |
