@@ -2,14 +2,14 @@
 
 ---
 
-## SECTION 1 : PROJECT TITLE
+## PROJECT TITLE
 ## Street Owl - Insightful analysis for targeted business optimisation
 
 <img src="Images/streetowl.png" width="400" />  
 
 ---
 
-## SECTION 2 : EXECUTIVE SUMMARY
+## EXECUTIVE SUMMARY
 #### Project Overview  
 Retailers, event organisers, and municipal planners often lack tools to analyse street-level crowd patterns, density, and movement in real-time, which could provide valuable insights for optimising operations, marketing, and resource allocation. Although many public spaces are monitored by street-view CCTV systems, these are typically used only for security, leaving their full potential for business and operational insights untapped. Street Owl transforms live video feeds from street-view CCTV into actionable crowd analytics, enabling stakeholders to understand crowd dynamics and respond effectively to on-the-ground conditions.
 
@@ -30,7 +30,7 @@ Street Owl aims to broaden its capabilities by integrating with a wider range of
 
 ---
 
-## SECTION 3 : PROJECT TEAM MEMBERS
+## PROJECT TEAM MEMBERS
 
 | Official Full Name  | Student ID | Email  |
 | :------------ |:---------------:| :-----|
@@ -41,18 +41,14 @@ Street Owl aims to broaden its capabilities by integrating with a wider range of
 
 ---
 
-## SECTION 4 : PROJECT REPORT
+## PROJECT REPORT
 
 Refer to [Project Report.pdf](ProjectReport/Project%20Report.pdf) in the **ProjectReport** folder
 
 
 ---
 
-## SECTION 5 : DEPLOYMENT AND USER GUIDE
-
-### User Guide
-
-You can  refer to  **User Guide** at appendix section in [Project Report.pdf](ProjectReport/Project%20Report.pdf). 
+## DEPLOYMENT  GUIDE
 
 
 ### Installation/Deployment Guide
