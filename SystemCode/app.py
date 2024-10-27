@@ -37,7 +37,7 @@ def render_headers():
     """
     st.session_state.left_exits_header.html(temp_text)
     temp_text = """
-    <p style="background-color: purple; border-radius: 8 px; text-align: center; color: white;">Exit Left</p>
+    <p style="background-color: purple; border-radius: 8 px; text-align: center; color: white;">Exit Right</p>
     """
     st.session_state.right_exits_header.html(temp_text)
     temp_text = """
