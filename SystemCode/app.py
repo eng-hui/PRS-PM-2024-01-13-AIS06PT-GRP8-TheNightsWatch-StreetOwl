@@ -193,10 +193,10 @@ def update_placeholders(annotated_frame):
     dense_level = st.session_state.current_density + 1
     human_count = st.session_state.num_objects
     # ensemble results
-    if human_count <= 10 and dense_level >= 2:
-        dense_level = 2
-    elif human_count <= 5 and dense_level >= 2:
+    if human_count <= 5 and dense_level >= 2:
         dense_level = 1
+    elif human_count <= 10 and dense_level >= 2:
+        dense_level = 2
 
 
     # Update density state change
